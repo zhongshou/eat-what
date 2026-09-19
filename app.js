@@ -3,17 +3,29 @@
    云服务：WorkBuddy Cloud（数据库 + 匿名可信访问，家庭小范围使用）
    ========================================================= */
 
-/* ---------- 公共配置（来自云服务 publicConfig） ---------- */
+/* ---------- 公共配置 ---------- */
+/* WorkBuddy 云服务凭据：仅在应用发布域名下可用（服务端校验来源域名）。
+   若 js/config.js 里填了 Supabase 配置，则自动改用 Supabase（可部署到任意域名）。 */
 const publicConfig = {
   endpoint: 'https://family-menu-77318.app.workbuddy.host',
   publishableKey: 'wbpk_KsPkQGh60e87DmgU2APT6I_e9S7rcMb3r7RGSZMMgwHYMjMTQvKVM24',
 };
 
-const cloud = WorkBuddyCloud.createWorkBuddyCloud({
-  endpoint: publicConfig.endpoint,
-  publishableKey: publicConfig.publishableKey,
-});
-const db = cloud.database;
+/* 后端选择：Supabase（填了配置）→ WorkBuddy 云服务（默认）→ 无后端 */
+const APP_CFG = (typeof window !== 'undefined' && window.APP_CONFIG) || {};
+let BACKEND = 'none';
+let db = null;
+if (APP_CFG.supabaseUrl && APP_CFG.supabaseKey && typeof createSupabaseDb === 'function') {
+  db = createSupabaseDb(APP_CFG.supabaseUrl, APP_CFG.supabaseKey);
+  BACKEND = 'supabase';
+} else if (typeof WorkBuddyCloud !== 'undefined') {
+  const cloud = WorkBuddyCloud.createWorkBuddyCloud({
+    endpoint: publicConfig.endpoint,
+    publishableKey: publicConfig.publishableKey,
+  });
+  db = cloud.database;
+  BACKEND = 'workbuddy';
+}
 
 /* ---------- 常量 ---------- */
 const RELATIONS = ['管理员', '家人', '朋友', '其他'];
@@ -1345,7 +1357,9 @@ function openCatForm(cat) {
 
 /* ---------- 分享（二维码） ---------- */
 function openShare() {
-  const url = location.origin === 'null' ? location.href : location.origin + location.pathname;
+  /* 兼容 GitHub Pages 子路径（/仓库名/）与本地 file:// 打开 */
+  let url = location.origin === 'null' ? location.href : location.origin + location.pathname;
+  url = url.split('#')[0].split('?')[0].replace(/index\.html$/i, '');
   const sheet = openModal(`
     <div class="modal-title">${ico('link', 18)} 分享给家人</div>
     <div class="qr-box">
@@ -1505,6 +1519,17 @@ function bindTabIcons() {
 (async function init() {
   bindTabbar();
   bindTabIcons();
+  if (!db) {
+    $('#main').innerHTML = `<div class="empty-tip" style="padding-top:120px">
+      <span class="empty-ico">🔌</span>还没有配置数据服务<br><br>
+      <div style="font-size:12px;color:var(--text-sub);line-height:1.7;margin-bottom:14px">
+        部署在 GitHub Pages 等第三方域名时，需要接入自己的 Supabase：<br>
+        1) 在 Supabase 执行 <b>supabase-setup.sql</b><br>
+        2) 打开 <b>js/config.js</b> 填入 supabaseUrl 和 supabaseKey<br>
+        3) 保存并重新推送</div>
+      <button class="btn btn-primary" onclick="location.reload()">重新加载</button></div>`;
+    return;
+  }
   try {
     await loadCore();
     applyBackground();
@@ -1522,6 +1547,22 @@ function bindTabIcons() {
   } catch (e) {
     $('#main').innerHTML = `<div class="empty-tip" style="padding-top:120px">
       <span class="empty-ico">🥲</span>${esc(e.message || '加载失败')}<br><br>
+      ${backendHelpHtml()}
       <button class="btn btn-primary" onclick="location.reload()">重新加载</button></div>`;
   }
 })();
+
+/* 数据服务不可用时的排查提示（区分后端与部署域名） */
+function backendHelpHtml() {
+  const host = location.hostname || '';
+  if (BACKEND === 'supabase') {
+    return `<div style="font-size:12px;color:var(--text-sub);line-height:1.7;margin-bottom:14px">
+      请检查 js/config.js 里的 supabaseUrl / supabaseKey，<br>并确认已在 Supabase 执行过 supabase-setup.sql。</div>`;
+  }
+  if (!host.endsWith('app.workbuddy.host')) {
+    return `<div style="font-size:12px;color:var(--text-sub);line-height:1.7;margin-bottom:14px">
+      当前域名 <b>${esc(host)}</b> 未获得数据服务授权（云数据库按发布域名校验来源）。<br>
+      部署在 GitHub Pages 等第三方域名时，请在 <b>js/config.js</b> 填入自己的 Supabase 配置，<br>即可正常保存数据。</div>`;
+  }
+  return '';
+}
