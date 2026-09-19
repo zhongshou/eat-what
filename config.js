@@ -11,6 +11,6 @@
       填到下面两行后保存，重新推送即可。
    ========================================================= */
 window.APP_CONFIG = {
-  supabaseUrl: '',   // 例：https://abcdefgh.supabase.co （结尾不要带斜杠）
-  supabaseKey: '',   // 例：eyJhbGciOi...（anon public key，可公开）
+  supabaseUrl: 'https://ynqltewxnybwxbzfcjls.supabase.co',   // 例：https://abcdefgh.supabase.co （结尾不要带斜杠）
+  supabaseKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlucWx0ZXd4bnlid3hiemZjamxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4MTc1MDIsImV4cCI6MjEwNTM5MzUwMn0.n5xK_Amvjp21xbXhpTPofun8nKqIs8g_BGAT-95FdOA',   // 例：eyJhbGciOi...（anon public key，可公开）
 };
